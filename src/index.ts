@@ -9,9 +9,10 @@ dotenv.config();
 
 const bot = new Telegraf(String(process.env.TELEGRAM_API_TOKEN));
 
+bot.telegram.deleteMyCommands();
 bot.telegram.setMyCommands([
   { command: '/start', description: 'start the bot' },
-  { command: '/stop', description: 'stop' },
+  { command: '/difficulty', description: 'Change difficulty' },
 ]);
 
 const buttons = Markup.inlineKeyboard([
@@ -20,12 +21,16 @@ const buttons = Markup.inlineKeyboard([
   Markup.button.callback('HARD', 'HARD'),
 ]);
 
-bot.command('start', async (ctx) => {
+bot.command('start', (ctx) => {
   ctx.replyWithMarkdownV2('Choose difficulty', buttons);
 
   // ctx.sendPoll("Did you solve today's question?", ['Yes ✅', 'No ❌'], {
   //   is_anonymous: false,
   // });
+});
+
+bot.command('difficulty', (ctx) => {
+  ctx.replyWithMarkdownV2('Choose difficulty', buttons);
 });
 
 const handleSetDifficulty = async (
@@ -36,7 +41,11 @@ const handleSetDifficulty = async (
     return;
   }
 
-  return Chat.create({ id: chatId, solvedQuestions: [], difficulty });
+  return Chat.findOneAndUpdate(
+    { id: chatId },
+    { id: chatId, difficulty },
+    { upsert: true },
+  );
 };
 
 const sendGeneralErrorMessage = (chatId?: number) => {
@@ -47,33 +56,22 @@ const sendGeneralErrorMessage = (chatId?: number) => {
   bot.telegram.sendMessage(chatId, 'An error has occurred. Please try again');
 };
 
-bot.action('EASY', async (ctx) => {
-  try {
-    await handleSetDifficulty(ctx.chat?.id, 'EASY');
-    ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
-  } catch (error) {
-    console.log(error);
-    sendGeneralErrorMessage(ctx.chat?.id);
-  }
-});
+bot.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
+  const { id: chatId } = ctx.chat || {};
 
-bot.action('MEDIUM', async (ctx) => {
-  try {
-    await handleSetDifficulty(ctx.chat?.id, 'MEDIUM');
-    ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
-  } catch (error) {
-    console.log(error);
-    sendGeneralErrorMessage(ctx.chat?.id);
+  if (!chatId) {
+    return;
   }
-});
 
-bot.action('HARD', async (ctx) => {
+  const difficulty = ctx.match[0] as Difficulty;
+
   try {
-    await handleSetDifficulty(ctx.chat?.id, 'HARD');
+    await handleSetDifficulty(chatId, difficulty);
+    ctx.telegram.sendMessage(chatId, `Difficulty changed to ${difficulty}`);
     ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
   } catch (error) {
     console.log(error);
-    sendGeneralErrorMessage(ctx.chat?.id);
+    sendGeneralErrorMessage(chatId);
   }
 });
 
