@@ -16,6 +16,7 @@ bot.telegram.deleteMyCommands();
 bot.telegram.setMyCommands([
   { command: '/start', description: 'start the bot' },
   { command: '/difficulty', description: 'Change difficulty' },
+  { command: '/total', description: 'Get the total of solved questions' },
 ]);
 
 const buttons = Markup.inlineKeyboard([
@@ -50,6 +51,12 @@ const handleSetDifficulty = async (
     { upsert: true },
   );
 };
+
+bot.command('total', async (ctx) => {
+  const { id } = ctx.chat;
+  const chat = await Chat.findOne({ id });
+  ctx.sendMessage(`You have solved ${chat?.solvedQuestions.length}`);
+});
 
 const sendGeneralErrorMessage = (chatId?: number) => {
   if (!chatId) {
