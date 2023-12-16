@@ -2,6 +2,8 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import { Markup, Telegraf } from 'telegraf';
+import Chat from './models/chat';
+import type { Difficulty } from './models/chat';
 
 dotenv.config();
 
@@ -26,17 +28,53 @@ bot.command('start', async (ctx) => {
   // });
 });
 
-bot.action('EASY', (ctx) => {
-  console.log(ctx.match[0]);
-  ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
+const handleSetDifficulty = async (
+  chatId: number | undefined,
+  difficulty: Difficulty,
+) => {
+  if (!chatId) {
+    return;
+  }
+
+  return Chat.create({ id: chatId, solvedQuestions: [], difficulty });
+};
+
+const sendGeneralErrorMessage = (chatId?: number) => {
+  if (!chatId) {
+    return;
+  }
+
+  bot.telegram.sendMessage(chatId, 'An error has occurred. Please try again');
+};
+
+bot.action('EASY', async (ctx) => {
+  try {
+    await handleSetDifficulty(ctx.chat?.id, 'EASY');
+    ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
+  } catch (error) {
+    console.log(error);
+    sendGeneralErrorMessage(ctx.chat?.id);
+  }
 });
 
-bot.action('MEDIUM', (ctx) => {
-  console.log(ctx.match[0]);
+bot.action('MEDIUM', async (ctx) => {
+  try {
+    await handleSetDifficulty(ctx.chat?.id, 'MEDIUM');
+    ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
+  } catch (error) {
+    console.log(error);
+    sendGeneralErrorMessage(ctx.chat?.id);
+  }
 });
 
-bot.action('HARD', (ctx) => {
-  console.log(ctx.match[0]);
+bot.action('HARD', async (ctx) => {
+  try {
+    await handleSetDifficulty(ctx.chat?.id, 'HARD');
+    ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
+  } catch (error) {
+    console.log(error);
+    sendGeneralErrorMessage(ctx.chat?.id);
+  }
 });
 
 bot.launch();
