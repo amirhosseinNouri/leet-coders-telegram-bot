@@ -1,26 +1,48 @@
 import dotenv from 'dotenv';
-import TelegramBot from 'node-telegram-bot-api';
 import mongoose from 'mongoose';
 import { z } from 'zod';
+import { Markup, Telegraf } from 'telegraf';
 
 dotenv.config();
 
-const bot = new TelegramBot(String(process.env.TELEGRAM_API_TOKEN), {
-  polling: true,
+const bot = new Telegraf(String(process.env.TELEGRAM_API_TOKEN));
+
+bot.telegram.setMyCommands([
+  { command: '/start', description: 'start the bot' },
+  { command: '/stop', description: 'stop' },
+]);
+
+const buttons = Markup.inlineKeyboard([
+  Markup.button.callback('EASY', 'EASY'),
+  Markup.button.callback('MEDIUM', 'MEDIUM'),
+  Markup.button.callback('HARD', 'HARD'),
+]);
+
+bot.command('start', async (ctx) => {
+  ctx.replyWithMarkdownV2('Choose difficulty', buttons);
+
+  // ctx.sendPoll("Did you solve today's question?", ['Yes ✅', 'No ❌'], {
+  //   is_anonymous: false,
+  // });
 });
 
-bot.setMyCommands([{ command: '/start', description: 'start the bot' }]);
-
-bot.onText(/\/start/, async (message, match) => {
-  const chatId = message.chat.id;
-  bot.sendPoll(chatId, "Did you solve today's question?", ['Yes ✅', 'No ❌'], {
-    is_anonymous: false,
-    type: 'regular',
-  });
+bot.action('EASY', (ctx) => {
+  console.log(ctx.match[0]);
+  ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
 });
+
+bot.action('MEDIUM', (ctx) => {
+  console.log(ctx.match[0]);
+});
+
+bot.action('HARD', (ctx) => {
+  console.log(ctx.match[0]);
+});
+
+bot.launch();
 
 const LeetCodeQuestionSchema = z.object({
-  titleSlug: z.string({ required_error: 'shit' }),
+  titleSlug: z.string(),
 });
 
 const LeetCodeResponseSchema = z.object({
