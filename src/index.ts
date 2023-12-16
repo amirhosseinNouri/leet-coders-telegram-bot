@@ -151,8 +151,6 @@ cron.schedule(String(process.env.CRON_REGEX), async () => {
   for (let i = 0; i < chats.length; i++) {
     const { difficulty, id, solvedQuestions } = chats[i];
 
-    console.log({ difficulty });
-
     const nominateQuestions =
       mapDifficultyToQuestions[difficulty].length > 0
         ? mapDifficultyToQuestions[difficulty]
