@@ -4,6 +4,9 @@ import { z } from 'zod';
 import { Markup, Telegraf } from 'telegraf';
 import Chat from './models/chat';
 import type { Difficulty } from './models/chat';
+import cron from 'node-cron';
+
+const LEET_CODE_BASE_URL = 'https://leetcode.com/problems';
 
 dotenv.config();
 
@@ -90,23 +93,99 @@ const LeetCodeResponseSchema = z.object({
   }),
 });
 
-const limit = 1000;
-const difficulty = 'EASY';
+type LeetCodeQuestion = z.infer<typeof LeetCodeQuestionSchema>;
+type LeetCodeResponse = z.infer<typeof LeetCodeResponseSchema>;
 
-fetch('https://leetcode.com/graphql/', {
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: `{"query":"\\n    query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {\\n  problemsetQuestionList: questionList(\\n    categorySlug: $categorySlug\\n    limit: $limit\\n    skip: $skip\\n    filters: $filters\\n  ) {\\n    total: totalNum\\n    questions: data {\\n      acRate\\n      difficulty\\n      freqBar\\n      frontendQuestionId: questionFrontendId\\n      isFavor\\n      paidOnly: isPaidOnly\\n      status\\n      title\\n      titleSlug\\n      topicTags {\\n        name\\n        id\\n        slug\\n      }\\n      hasSolution\\n      hasVideoSolution\\n    }\\n  }\\n}\\n    ","variables":{"categorySlug":"algorithms","skip":0,"limit":${limit},"filters":{"difficulty":"${difficulty}"}},"operationName":"problemsetQuestionList"}`,
-  method: 'POST',
-  credentials: 'include',
-})
-  .then((res) => res.json())
-  .then((data) => {
-    const res = LeetCodeResponseSchema.parse(data);
-    console.log(res.data.problemsetQuestionList.total);
-  })
-  .catch((e) => console.error(e));
+type TitleSlug = string;
+
+const limit = 1000;
+
+type FetchQuestions = (difficulty: Difficulty) => Promise<TitleSlug[]>;
+
+const fetchQuestions: FetchQuestions = async (difficulty) => {
+  const data = await fetch('https://leetcode.com/graphql/', {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: `{"query":"\\n    query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {\\n  problemsetQuestionList: questionList(\\n    categorySlug: $categorySlug\\n    limit: $limit\\n    skip: $skip\\n    filters: $filters\\n  ) {\\n    total: totalNum\\n    questions: data {\\n      acRate\\n      difficulty\\n      freqBar\\n      frontendQuestionId: questionFrontendId\\n      isFavor\\n      paidOnly: isPaidOnly\\n      status\\n      title\\n      titleSlug\\n      topicTags {\\n        name\\n        id\\n        slug\\n      }\\n      hasSolution\\n      hasVideoSolution\\n    }\\n  }\\n}\\n    ","variables":{"categorySlug":"algorithms","skip":0,"limit":${limit},"filters":{"difficulty":"${difficulty}"}},"operationName":"problemsetQuestionList"}`,
+    method: 'POST',
+    credentials: 'include',
+  });
+  const payload = await data.json();
+  const response = LeetCodeResponseSchema.parse(payload);
+
+  return response.data.problemsetQuestionList.questions.map(
+    (question) => question.titleSlug,
+  );
+};
+
+const pickUnsolvedQuestion = (
+  solvedQuestions: TitleSlug[],
+  nominatedQuestions: TitleSlug[],
+): TitleSlug | null => {
+  for (let i = 0; i < nominatedQuestions.length; i++) {
+    const currentNominatedQuestion = nominatedQuestions[i];
+    if (!solvedQuestions.includes(currentNominatedQuestion)) {
+      return currentNominatedQuestion;
+    }
+  }
+
+  return null;
+};
+
+const generateLeetCodeQuestionURL = (slug: TitleSlug): string =>
+  `${LEET_CODE_BASE_URL}/${slug}`;
+
+cron.schedule(String(process.env.CRON_REGEX), async () => {
+  const mapDifficultyToQuestions: Record<Difficulty, TitleSlug[]> = {
+    EASY: [],
+    MEDIUM: [],
+    HARD: [],
+  };
+
+  const chats = await Chat.find();
+
+  for (let i = 0; i < chats.length; i++) {
+    const { difficulty, id, solvedQuestions } = chats[i];
+
+    console.log({ difficulty });
+
+    const nominateQuestions =
+      mapDifficultyToQuestions[difficulty].length > 0
+        ? mapDifficultyToQuestions[difficulty]
+        : await fetchQuestions(difficulty);
+
+    const question = pickUnsolvedQuestion(solvedQuestions, nominateQuestions);
+
+    if (!question) {
+      bot.telegram.sendMessage(
+        id,
+        `There is no unsolved ${difficulty} questions.`,
+      );
+      return;
+    }
+
+    await Chat.findOneAndUpdate(
+      { id },
+      { solvedQuestions: [...solvedQuestions, question] },
+    );
+
+    const { message_id } = await bot.telegram.sendMessage(
+      id,
+      generateLeetCodeQuestionURL(question),
+    );
+
+    bot.telegram.sendPoll(
+      id,
+      "Did you solve today's question?",
+      ['Yes ✅', 'No ❌'],
+      {
+        is_anonymous: false,
+        reply_to_message_id: message_id,
+      },
+    );
+  }
+});
 
 mongoose
   .connect(String(process.env.DB_URL))
