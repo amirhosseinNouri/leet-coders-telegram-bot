@@ -27,10 +27,6 @@ const buttons = Markup.inlineKeyboard([
 
 bot.command('start', (ctx) => {
   ctx.replyWithMarkdownV2('Choose difficulty', buttons);
-
-  // ctx.sendPoll("Did you solve today's question?", ['Yes ✅', 'No ❌'], {
-  //   is_anonymous: false,
-  // });
 });
 
 bot.command('difficulty', (ctx) => {
@@ -184,7 +180,7 @@ cron.schedule(String(process.env.CRON_REGEX), async () => {
 
     bot.telegram.sendPoll(
       id,
-      "Did you solve today's question?",
+      `Did you solve ${question}?`,
       ['Yes ✅', 'No ❌'],
       {
         is_anonymous: false,
