@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import TelegramBot from 'node-telegram-bot-api';
+import mongoose from 'mongoose';
 
 dotenv.config();
 
@@ -42,3 +43,7 @@ fetch('https://leetcode.com/graphql/', {
   .then((data: LeetCodeResponse) =>
     console.log(data.data.problemsetQuestionList.questions.length),
   );
+
+mongoose
+  .connect(String(process.env.DB_URL))
+  .then(() => console.log('db connected successfully'));
