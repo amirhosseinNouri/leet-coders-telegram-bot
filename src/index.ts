@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import TelegramBot from 'node-telegram-bot-api';
 import mongoose from 'mongoose';
+import { z } from 'zod';
 
 dotenv.config();
 
@@ -18,15 +19,18 @@ bot.onText(/\/start/, async (message, match) => {
   });
 });
 
-type LeetCodeQuestion = {
-  'title-slug': string;
-};
+const LeetCodeQuestionSchema = z.object({
+  titleSlug: z.string({ required_error: 'shit' }),
+});
 
-type LeetCodeResponse = {
-  data: {
-    problemsetQuestionList: { total: number; questions: LeetCodeQuestion[] };
-  };
-};
+const LeetCodeResponseSchema = z.object({
+  data: z.object({
+    problemsetQuestionList: z.object({
+      total: z.number(),
+      questions: z.array(LeetCodeQuestionSchema),
+    }),
+  }),
+});
 
 const limit = 1000;
 const difficulty = 'EASY';
@@ -40,9 +44,11 @@ fetch('https://leetcode.com/graphql/', {
   credentials: 'include',
 })
   .then((res) => res.json())
-  .then((data: LeetCodeResponse) =>
-    console.log(data.data.problemsetQuestionList.questions.length),
-  );
+  .then((data) => {
+    const res = LeetCodeResponseSchema.parse(data);
+    console.log(res.data.problemsetQuestionList.total);
+  })
+  .catch((e) => console.error(e));
 
 mongoose
   .connect(String(process.env.DB_URL))
