@@ -14,6 +14,7 @@ const setupBotCommands = () => {
     { command: '/start', description: 'start the bot' },
     { command: '/difficulty', description: 'Change difficulty' },
     { command: '/total', description: 'Get the total of solved questions' },
+    { command: '/another', description: 'Send another question' },
   ]);
 };
 

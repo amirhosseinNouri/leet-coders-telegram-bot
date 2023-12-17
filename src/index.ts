@@ -28,6 +28,8 @@ bot.telegraf.command('total', async (ctx) => {
   ctx.sendMessage(`You have solved ${chat?.solvedQuestions.length}`);
 });
 
+bot.telegraf.command('another', (ctx) => sendAQuestion(ctx.chat.id));
+
 bot.telegraf.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
   const { id: chatId } = ctx.chat || {};
 
@@ -47,14 +49,14 @@ bot.telegraf.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
   }
 });
 
-const sendAQuestion = async () => {
+const sendAQuestion = async (chatId?: number) => {
   const mapDifficultyToQuestions: Record<Difficulty, TitleSlug[]> = {
     EASY: [],
     MEDIUM: [],
     HARD: [],
   };
-
-  const chats = await Chat.find();
+  const filter = chatId ? { id: chatId } : {};
+  const chats = await Chat.find(filter);
 
   for (let i = 0; i < chats.length; i++) {
     const { difficulty, id, solvedQuestions } = chats[i];
@@ -99,7 +101,7 @@ const sendAQuestion = async () => {
   }
 };
 
-cron.schedule(String(process.env.CRON_REGEX), sendAQuestion);
+cron.schedule(String(process.env.CRON_REGEX), () => sendAQuestion());
 
 // Launch
 db.connect();
