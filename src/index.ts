@@ -25,7 +25,22 @@ bot.telegraf.command('difficulty', (ctx) => {
 bot.telegraf.command('total', async (ctx) => {
   const { id } = ctx.chat;
   const chat = await Chat.findOne({ id });
-  ctx.sendMessage(`You have solved ${chat?.solvedQuestions.length}`);
+
+  if (!chat) {
+    return;
+  }
+
+  const easy = chat.easySolvedQuestions.length;
+  const medium = chat.mediumSolvedQuestions.length;
+  const hard = chat.hardSolvedQuestions.length;
+
+  const message = `You have solved:
+  😀 ${easy} EASY questions.
+  👀 ${medium} MEDIUM questions.
+  😰 ${hard} HARD questions.
+  🧮 total: ${easy + medium + hard}
+  `;
+  ctx.sendMessage(message);
 });
 
 bot.telegraf.command('another', (ctx) => sendAQuestion(ctx.chat.id));
@@ -59,7 +74,9 @@ const sendAQuestion = async (chatId?: number) => {
   const chats = await Chat.find(filter);
 
   for (let i = 0; i < chats.length; i++) {
-    const { difficulty, id, solvedQuestions } = chats[i];
+    const currentChat = chats[i];
+    const { difficulty, id } = currentChat;
+    const solvedQuestions = currentChat.getSolvedQuestions(difficulty);
 
     const nominateQuestions =
       mapDifficultyToQuestions[difficulty].length > 0
@@ -79,10 +96,7 @@ const sendAQuestion = async (chatId?: number) => {
       return;
     }
 
-    await Chat.findOneAndUpdate(
-      { id },
-      { solvedQuestions: [...solvedQuestions, question] },
-    );
+    currentChat.updateSolvedQuestions(difficulty, question);
 
     const { message_id } = await bot.telegraf.telegram.sendMessage(
       id,
