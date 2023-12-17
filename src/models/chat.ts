@@ -1,13 +1,18 @@
 import mongoose from 'mongoose';
+import type { Model } from 'mongoose';
 import type { Difficulty } from '../types';
 
-type ChatType = {
+interface ChatType {
   id: number;
   solvedQuestions: string[];
   difficulty: Difficulty;
-};
+}
 
-const chatSchema = new mongoose.Schema<ChatType>({
+interface ChatModel extends Model<ChatType> {
+  changeDifficulty(chatId: number | undefined, difficulty: Difficulty): void;
+}
+
+const chatSchema = new mongoose.Schema<ChatType, ChatModel>({
   id: { type: Number, unique: true },
   solvedQuestions: {
     type: [String],
@@ -20,6 +25,21 @@ const chatSchema = new mongoose.Schema<ChatType>({
   },
 });
 
-const ChatModel = mongoose.model('Chat', chatSchema);
+chatSchema.static(
+  'changeDifficulty',
+  async function (chatId: number | undefined, difficulty: Difficulty) {
+    if (!chatId) {
+      return;
+    }
+
+    return this.findOneAndUpdate(
+      { id: chatId },
+      { id: chatId, difficulty },
+      { upsert: true },
+    );
+  },
+);
+
+const ChatModel = mongoose.model<ChatType, ChatModel>('Chat', chatSchema);
 
 export default ChatModel;

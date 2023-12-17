@@ -1,12 +1,12 @@
 import dotenv from 'dotenv';
+dotenv.config();
+
 import Chat from './models/chat';
 import type { Difficulty, TitleSlug } from './types';
 import cron from 'node-cron';
 import bot from './telegram';
 import db from './db';
 import leetcode from './leetcode';
-
-dotenv.config();
 
 // Telegram bot configurations
 bot.setupBotCommands();
@@ -38,7 +38,7 @@ bot.telegraf.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
   const difficulty = ctx.match[0] as Difficulty;
 
   try {
-    await handleSetDifficulty(chatId, difficulty);
+    await Chat.changeDifficulty(chatId, difficulty);
     ctx.telegram.sendMessage(chatId, `Difficulty changed to ${difficulty}`);
     ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
   } catch (error) {
@@ -47,22 +47,7 @@ bot.telegraf.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
   }
 });
 
-const handleSetDifficulty = async (
-  chatId: number | undefined,
-  difficulty: Difficulty,
-) => {
-  if (!chatId) {
-    return;
-  }
-
-  return Chat.findOneAndUpdate(
-    { id: chatId },
-    { id: chatId, difficulty },
-    { upsert: true },
-  );
-};
-
-cron.schedule(String(process.env.CRON_REGEX), async () => {
+const sendAQuestion = async () => {
   const mapDifficultyToQuestions: Record<Difficulty, TitleSlug[]> = {
     EASY: [],
     MEDIUM: [],
@@ -112,8 +97,10 @@ cron.schedule(String(process.env.CRON_REGEX), async () => {
       },
     );
   }
-});
+};
 
-bot.telegraf.launch();
+cron.schedule(String(process.env.CRON_REGEX), sendAQuestion);
 
+// Launch
 db.connect();
+bot.telegraf.launch();
