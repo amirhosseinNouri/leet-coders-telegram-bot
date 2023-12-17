@@ -5,32 +5,21 @@ import { Markup, Telegraf } from 'telegraf';
 import Chat from './models/chat';
 import type { Difficulty } from './models/chat';
 import cron from 'node-cron';
+import bot, { difficultyInlineKeyboard, setupBotCommands } from './telegram';
 
 const LEET_CODE_BASE_URL = 'https://leetcode.com/problems';
 
 dotenv.config();
 
-const bot = new Telegraf(String(process.env.TELEGRAM_API_TOKEN));
-
-bot.telegram.deleteMyCommands();
-bot.telegram.setMyCommands([
-  { command: '/start', description: 'start the bot' },
-  { command: '/difficulty', description: 'Change difficulty' },
-  { command: '/total', description: 'Get the total of solved questions' },
-]);
-
-const buttons = Markup.inlineKeyboard([
-  Markup.button.callback('EASY', 'EASY'),
-  Markup.button.callback('MEDIUM', 'MEDIUM'),
-  Markup.button.callback('HARD', 'HARD'),
-]);
+// Telegram bot configurations
+setupBotCommands();
 
 bot.command('start', (ctx) => {
-  ctx.replyWithMarkdownV2('Choose difficulty', buttons);
+  ctx.replyWithMarkdownV2('Choose difficulty', difficultyInlineKeyboard);
 });
 
 bot.command('difficulty', (ctx) => {
-  ctx.replyWithMarkdownV2('Choose difficulty', buttons);
+  ctx.replyWithMarkdownV2('Choose difficulty', difficultyInlineKeyboard);
 });
 
 const handleSetDifficulty = async (
@@ -95,9 +84,6 @@ const LeetCodeResponseSchema = z.object({
     }),
   }),
 });
-
-type LeetCodeQuestion = z.infer<typeof LeetCodeQuestionSchema>;
-type LeetCodeResponse = z.infer<typeof LeetCodeResponseSchema>;
 
 type TitleSlug = string;
 
