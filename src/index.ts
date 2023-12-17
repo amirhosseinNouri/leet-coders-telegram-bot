@@ -1,12 +1,10 @@
 import dotenv from 'dotenv';
-import { z } from 'zod';
 import Chat from './models/chat';
-import type { Difficulty } from './models/chat';
+import type { Difficulty, TitleSlug } from './types';
 import cron from 'node-cron';
 import bot, { difficultyInlineKeyboard, setupBotCommands } from './telegram';
 import db from './db';
-
-const LEET_CODE_BASE_URL = 'https://leetcode.com/problems';
+import leetcode from './leetcode';
 
 dotenv.config();
 
@@ -71,42 +69,6 @@ bot.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
 
 bot.launch();
 
-const LeetCodeQuestionSchema = z.object({
-  titleSlug: z.string(),
-});
-
-const LeetCodeResponseSchema = z.object({
-  data: z.object({
-    problemsetQuestionList: z.object({
-      total: z.number(),
-      questions: z.array(LeetCodeQuestionSchema),
-    }),
-  }),
-});
-
-type TitleSlug = string;
-
-const limit = 1000;
-
-type FetchQuestions = (difficulty: Difficulty) => Promise<TitleSlug[]>;
-
-const fetchQuestions: FetchQuestions = async (difficulty) => {
-  const data = await fetch('https://leetcode.com/graphql/', {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: `{"query":"\\n    query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {\\n  problemsetQuestionList: questionList(\\n    categorySlug: $categorySlug\\n    limit: $limit\\n    skip: $skip\\n    filters: $filters\\n  ) {\\n    total: totalNum\\n    questions: data {\\n      acRate\\n      difficulty\\n      freqBar\\n      frontendQuestionId: questionFrontendId\\n      isFavor\\n      paidOnly: isPaidOnly\\n      status\\n      title\\n      titleSlug\\n      topicTags {\\n        name\\n        id\\n        slug\\n      }\\n      hasSolution\\n      hasVideoSolution\\n    }\\n  }\\n}\\n    ","variables":{"categorySlug":"algorithms","skip":0,"limit":${limit},"filters":{"difficulty":"${difficulty}"}},"operationName":"problemsetQuestionList"}`,
-    method: 'POST',
-    credentials: 'include',
-  });
-  const payload = await data.json();
-  const response = LeetCodeResponseSchema.parse(payload);
-
-  return response.data.problemsetQuestionList.questions.map(
-    (question) => question.titleSlug,
-  );
-};
-
 const pickUnsolvedQuestion = (
   solvedQuestions: TitleSlug[],
   nominatedQuestions: TitleSlug[],
@@ -120,9 +82,6 @@ const pickUnsolvedQuestion = (
 
   return null;
 };
-
-const generateLeetCodeQuestionURL = (slug: TitleSlug): string =>
-  `${LEET_CODE_BASE_URL}/${slug}`;
 
 cron.schedule(String(process.env.CRON_REGEX), async () => {
   const mapDifficultyToQuestions: Record<Difficulty, TitleSlug[]> = {
@@ -139,7 +98,7 @@ cron.schedule(String(process.env.CRON_REGEX), async () => {
     const nominateQuestions =
       mapDifficultyToQuestions[difficulty].length > 0
         ? mapDifficultyToQuestions[difficulty]
-        : await fetchQuestions(difficulty);
+        : await leetcode.fetchQuestions(difficulty);
 
     const question = pickUnsolvedQuestion(solvedQuestions, nominateQuestions);
 
@@ -158,7 +117,7 @@ cron.schedule(String(process.env.CRON_REGEX), async () => {
 
     const { message_id } = await bot.telegram.sendMessage(
       id,
-      generateLeetCodeQuestionURL(question),
+      leetcode.generateQuestionURL(question),
     );
 
     bot.telegram.sendPoll(

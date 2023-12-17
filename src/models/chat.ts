@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
-
-export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
+import type { Difficulty } from '../types';
 
 type ChatType = {
   id: number;
