@@ -2,21 +2,49 @@ import dotenv from 'dotenv';
 import Chat from './models/chat';
 import type { Difficulty, TitleSlug } from './types';
 import cron from 'node-cron';
-import bot, { difficultyInlineKeyboard, setupBotCommands } from './telegram';
+import bot from './telegram';
 import db from './db';
 import leetcode from './leetcode';
 
 dotenv.config();
 
 // Telegram bot configurations
-setupBotCommands();
+bot.setupBotCommands();
 
-bot.command('start', (ctx) => {
-  ctx.replyWithMarkdownV2('Choose difficulty', difficultyInlineKeyboard);
+/**
+ * Telegram bot handlers
+ */
+bot.telegraf.command('start', (ctx) => {
+  ctx.replyWithMarkdownV2('Choose difficulty', bot.difficultyInlineKeyboard);
 });
 
-bot.command('difficulty', (ctx) => {
-  ctx.replyWithMarkdownV2('Choose difficulty', difficultyInlineKeyboard);
+bot.telegraf.command('difficulty', (ctx) => {
+  ctx.replyWithMarkdownV2('Choose difficulty', bot.difficultyInlineKeyboard);
+});
+
+bot.telegraf.command('total', async (ctx) => {
+  const { id } = ctx.chat;
+  const chat = await Chat.findOne({ id });
+  ctx.sendMessage(`You have solved ${chat?.solvedQuestions.length}`);
+});
+
+bot.telegraf.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
+  const { id: chatId } = ctx.chat || {};
+
+  if (!chatId) {
+    return;
+  }
+
+  const difficulty = ctx.match[0] as Difficulty;
+
+  try {
+    await handleSetDifficulty(chatId, difficulty);
+    ctx.telegram.sendMessage(chatId, `Difficulty changed to ${difficulty}`);
+    ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
+  } catch (error) {
+    console.log(error);
+    bot.sendGeneralErrorMessage(chatId);
+  }
 });
 
 const handleSetDifficulty = async (
@@ -32,55 +60,6 @@ const handleSetDifficulty = async (
     { id: chatId, difficulty },
     { upsert: true },
   );
-};
-
-bot.command('total', async (ctx) => {
-  const { id } = ctx.chat;
-  const chat = await Chat.findOne({ id });
-  ctx.sendMessage(`You have solved ${chat?.solvedQuestions.length}`);
-});
-
-const sendGeneralErrorMessage = (chatId?: number) => {
-  if (!chatId) {
-    return;
-  }
-
-  bot.telegram.sendMessage(chatId, 'An error has occurred. Please try again');
-};
-
-bot.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
-  const { id: chatId } = ctx.chat || {};
-
-  if (!chatId) {
-    return;
-  }
-
-  const difficulty = ctx.match[0] as Difficulty;
-
-  try {
-    await handleSetDifficulty(chatId, difficulty);
-    ctx.telegram.sendMessage(chatId, `Difficulty changed to ${difficulty}`);
-    ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
-  } catch (error) {
-    console.log(error);
-    sendGeneralErrorMessage(chatId);
-  }
-});
-
-bot.launch();
-
-const pickUnsolvedQuestion = (
-  solvedQuestions: TitleSlug[],
-  nominatedQuestions: TitleSlug[],
-): TitleSlug | null => {
-  for (let i = 0; i < nominatedQuestions.length; i++) {
-    const currentNominatedQuestion = nominatedQuestions[i];
-    if (!solvedQuestions.includes(currentNominatedQuestion)) {
-      return currentNominatedQuestion;
-    }
-  }
-
-  return null;
 };
 
 cron.schedule(String(process.env.CRON_REGEX), async () => {
@@ -100,10 +79,13 @@ cron.schedule(String(process.env.CRON_REGEX), async () => {
         ? mapDifficultyToQuestions[difficulty]
         : await leetcode.fetchQuestions(difficulty);
 
-    const question = pickUnsolvedQuestion(solvedQuestions, nominateQuestions);
+    const question = leetcode.pickUnsolvedQuestion(
+      solvedQuestions,
+      nominateQuestions,
+    );
 
     if (!question) {
-      bot.telegram.sendMessage(
+      bot.telegraf.telegram.sendMessage(
         id,
         `There is no unsolved ${difficulty} questions.`,
       );
@@ -115,12 +97,12 @@ cron.schedule(String(process.env.CRON_REGEX), async () => {
       { solvedQuestions: [...solvedQuestions, question] },
     );
 
-    const { message_id } = await bot.telegram.sendMessage(
+    const { message_id } = await bot.telegraf.telegram.sendMessage(
       id,
       leetcode.generateQuestionURL(question),
     );
 
-    bot.telegram.sendPoll(
+    bot.telegraf.telegram.sendPoll(
       id,
       `Did you solve ${question}?`,
       ['Yes ✅', 'No ❌'],
@@ -131,5 +113,7 @@ cron.schedule(String(process.env.CRON_REGEX), async () => {
     );
   }
 });
+
+bot.telegraf.launch();
 
 db.connect();

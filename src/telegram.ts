@@ -17,6 +17,19 @@ const setupBotCommands = () => {
   ]);
 };
 
-export default bot;
+const sendGeneralErrorMessage = (chatId?: number) => {
+  if (!chatId) {
+    return;
+  }
 
-export { difficultyInlineKeyboard, setupBotCommands };
+  bot.telegram.sendMessage(chatId, 'An error has occurred. Please try again');
+};
+
+// export default bot;
+
+export default {
+  telegraf: bot,
+  difficultyInlineKeyboard,
+  setupBotCommands,
+  sendGeneralErrorMessage,
+};

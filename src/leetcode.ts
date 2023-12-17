@@ -45,4 +45,18 @@ const fetchQuestions: FetchQuestions = async (
 const generateQuestionURL = (slug: TitleSlug): string =>
   `${LEET_CODE_BASE_URL}/${slug}`;
 
-export default { fetchQuestions, generateQuestionURL };
+const pickUnsolvedQuestion = (
+  solvedQuestions: TitleSlug[],
+  nominatedQuestions: TitleSlug[],
+): TitleSlug | null => {
+  for (let i = 0; i < nominatedQuestions.length; i++) {
+    const currentNominatedQuestion = nominatedQuestions[i];
+    if (!solvedQuestions.includes(currentNominatedQuestion)) {
+      return currentNominatedQuestion;
+    }
+  }
+
+  return null;
+};
+
+export default { fetchQuestions, generateQuestionURL, pickUnsolvedQuestion };
