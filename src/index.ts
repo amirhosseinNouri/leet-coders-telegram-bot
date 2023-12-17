@@ -1,11 +1,10 @@
 import dotenv from 'dotenv';
-import mongoose from 'mongoose';
 import { z } from 'zod';
-import { Markup, Telegraf } from 'telegraf';
 import Chat from './models/chat';
 import type { Difficulty } from './models/chat';
 import cron from 'node-cron';
 import bot, { difficultyInlineKeyboard, setupBotCommands } from './telegram';
+import db from './db';
 
 const LEET_CODE_BASE_URL = 'https://leetcode.com/problems';
 
@@ -174,6 +173,4 @@ cron.schedule(String(process.env.CRON_REGEX), async () => {
   }
 });
 
-mongoose
-  .connect(String(process.env.DB_URL))
-  .then(() => console.log('db connected successfully'));
+db.connect();
