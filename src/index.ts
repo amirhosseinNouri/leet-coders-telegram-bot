@@ -8,7 +8,9 @@ import bot from './telegram';
 import db from './db';
 import leetcode from './leetcode';
 
-// Telegram bot configurations
+/**
+ * Telegram bot configurations
+ */
 bot.setupBotCommands();
 
 /**
@@ -139,6 +141,9 @@ const sendAQuestion = async (chatId?: number) => {
   }
 };
 
+/**
+ * Cron job
+ */
 cron.schedule(String(process.env.CRON_REGEX), () => sendAQuestion());
 
 // Launch
