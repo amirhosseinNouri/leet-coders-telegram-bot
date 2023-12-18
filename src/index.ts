@@ -126,7 +126,7 @@ const sendAQuestion = async (chatId?: number) => {
         await bot.telegraf.telegram.sendPoll(
           id,
           `Did you solve ${question}?`,
-          ['Yes ✅', 'No ❌'],
+          ['✅', '❌'],
           {
             is_anonymous: false,
             reply_to_message_id: questionMessageId,
