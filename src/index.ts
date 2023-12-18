@@ -43,7 +43,22 @@ bot.telegraf.command('total', async (ctx) => {
   ctx.sendMessage(message);
 });
 
-bot.telegraf.command('another', (ctx) => sendAQuestion(ctx.chat.id));
+bot.telegraf.command('another', async (ctx) => {
+  const { id } = ctx.chat;
+
+  try {
+    const chat = await Chat.findOne({ id });
+
+    if (chat) {
+      await ctx.deleteMessage(chat.latestPollId);
+      await ctx.deleteMessage(chat.latestQuestionId);
+    }
+
+    sendAQuestion(id);
+  } catch (error) {
+    bot.sendGeneralErrorMessage();
+  }
+});
 
 bot.telegraf.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
   const { id: chatId } = ctx.chat || {};
@@ -88,30 +103,39 @@ const sendAQuestion = async (chatId?: number) => {
       nominateQuestions,
     );
 
-    if (!question) {
-      bot.telegraf.telegram.sendMessage(
-        id,
-        `There is no unsolved ${difficulty} questions.`,
-      );
-      return;
+    try {
+      if (!question) {
+        bot.telegraf.telegram.sendMessage(
+          id,
+          `There is no unsolved ${difficulty} questions.`,
+        );
+        return;
+      }
+
+      currentChat.updateSolvedQuestions(difficulty, question);
+
+      const { message_id: questionMessageId } =
+        await bot.telegraf.telegram.sendMessage(
+          id,
+          leetcode.generateQuestionURL(question),
+        );
+
+      const { message_id: pollMessageId } =
+        await bot.telegraf.telegram.sendPoll(
+          id,
+          `Did you solve ${question}?`,
+          ['Yes ✅', 'No ❌'],
+          {
+            is_anonymous: false,
+            reply_to_message_id: questionMessageId,
+          },
+        );
+
+      currentChat.updateLatestIds(questionMessageId, pollMessageId);
+    } catch (error) {
+      console.error(error);
+      bot.sendGeneralErrorMessage();
     }
-
-    currentChat.updateSolvedQuestions(difficulty, question);
-
-    const { message_id } = await bot.telegraf.telegram.sendMessage(
-      id,
-      leetcode.generateQuestionURL(question),
-    );
-
-    bot.telegraf.telegram.sendPoll(
-      id,
-      `Did you solve ${question}?`,
-      ['Yes ✅', 'No ❌'],
-      {
-        is_anonymous: false,
-        reply_to_message_id: message_id,
-      },
-    );
   }
 };
 

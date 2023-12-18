@@ -10,11 +10,14 @@ interface ChatType {
   mediumSolvedQuestions: SolvedQuestions;
   hardSolvedQuestions: SolvedQuestions;
   difficulty: Difficulty;
+  latestQuestionId: number;
+  latestPollId: number;
 }
 
 interface ChatInstanceMethods {
   getSolvedQuestions(difficulty: Difficulty): SolvedQuestions;
   updateSolvedQuestions(difficulty: Difficulty, question: string): void;
+  updateLatestIds(questionId: number, pollId: number): void;
 }
 
 interface ChatModel extends Model<ChatType, {}, ChatInstanceMethods> {
@@ -39,6 +42,12 @@ const chatSchema = new mongoose.Schema<ChatType, ChatModel>({
     type: String,
     enum: ['EASY', 'MEDIUM', 'HARD'],
     default: 'EASY',
+  },
+  latestQuestionId: {
+    type: Number,
+  },
+  latestPollId: {
+    type: Number,
   },
 });
 
@@ -81,6 +90,16 @@ chatSchema.method(
       });
       return;
     }
+  },
+);
+
+chatSchema.method(
+  'updateLatestIds',
+  async function (questionId: number, pollId: number) {
+    await this.updateOne({
+      latestPollId: pollId,
+      latestQuestionId: questionId,
+    });
   },
 );
 
