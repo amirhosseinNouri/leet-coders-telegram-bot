@@ -5,32 +5,27 @@ services:
   mongo:
     image: mongo
     container_name: mongodb
-    ports:
-      - '27017:27017'
+    expose:
+      - '27017'
     volumes:
       - mongo_data:/data/db
     networks:
-      - app-network
+      - bridge-network
 
   # Node.js application service
   node-app:
-    build:
-      context: .
-      dockerfile: Dockerfile # Path to your Dockerfile for the Node.js app
+    build: .
     container_name: node-app
     depends_on:
       - mongo
-    ports:
-      - '3000:3000'
     env_file:
-      - .env # Load environment variables from the .env file
-    environment:
-      - DB_URL=mongodb://mongo:27017/leet-coders-bot
+      - .env
+      - .env.production
     networks:
-      - app-network
+      - bridge-network
 
 networks:
-  app-network:
+  bridge-network:
     driver: bridge
 
 volumes:
