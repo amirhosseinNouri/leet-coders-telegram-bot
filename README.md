@@ -2,8 +2,6 @@
 
 Solve LeetCode algorithm problems with your friends using a Telegram bot!
 
-![LeetCode_Logo_1](https://github.com/amirhosseinNouri/leet-coders-telegram-bot/assets/63261053/9e1aa33c-8ac2-4664-9ae7-41d0346e99c7)
-
 
 ### Introduction
 
