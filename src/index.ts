@@ -5,9 +5,10 @@ import Chat from './models/chat';
 import type { Difficulty, TitleSlug } from './types';
 import cron from 'node-cron';
 import bot from './telegram';
-import db from './db';
+import mongoose from 'mongoose';
 import leetcode from './leetcode';
 import { getHumanReadableCronExpression } from './cron';
+import logger from './logger';
 
 /**
  * Telegram bot configurations
@@ -142,15 +143,25 @@ const sendAQuestion = async (chatId?: number) => {
   }
 };
 
-/**
- * Cron job
- */
-cron.schedule(String(process.env.CRON_REGEX), () => sendAQuestion(), {
-  timezone: String(process.env.TIMEZONE),
-});
+logger.info(getHumanReadableCronExpression());
 
-console.log(`The job will be executed in: ${getHumanReadableCronExpression()}`);
+const run = async () => {
+  try {
+    // DB connection
+    await mongoose.connect(String(process.env.DB_URL));
+    logger.info('DB connected successfully');
 
-// Launch
-db.connect();
-bot.telegraf.launch();
+    // Launch Telegram bot
+    bot.telegraf.launch();
+    logger.info('Telegram bot launched successfully.');
+
+    // Schedule cron job
+    cron.schedule(String(process.env.CRON_REGEX), () => sendAQuestion(), {
+      timezone: String(process.env.TIMEZONE),
+    });
+  } catch (error) {
+    logger.error(`An error has happened: ${error}`);
+  }
+};
+
+run();
