@@ -7,6 +7,7 @@ import cron from 'node-cron';
 import bot from './telegram';
 import db from './db';
 import leetcode from './leetcode';
+import { getHumanReadableCronExpression } from './cron';
 
 /**
  * Telegram bot configurations
@@ -144,7 +145,11 @@ const sendAQuestion = async (chatId?: number) => {
 /**
  * Cron job
  */
-cron.schedule(String(process.env.CRON_REGEX), () => sendAQuestion());
+cron.schedule(String(process.env.CRON_REGEX), () => sendAQuestion(), {
+  timezone: String(process.env.TIMEZONE),
+});
+
+console.log(`The job will be executed in: ${getHumanReadableCronExpression()}`);
 
 // Launch
 db.connect();
