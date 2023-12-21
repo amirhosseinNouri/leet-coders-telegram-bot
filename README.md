@@ -60,6 +60,8 @@ DATABASE_URL=mongodb://mongodb_host:27017/leet-coders-bot # or mongodb://localho
 CRON_REGEX=00 00 * * 0,1,2,3,6 # At 12:00 AM, only on Sunday, Monday, Tuesday, Wednesday, and Saturday
 ```
 
+Or you can just create a copy of `.env.sample` file and apply your changes there.
+
 Note that the content of .env.production can override the variables with the same name in the .env file.
 
 Replace `your_telegram_bot_token` with your actual Telegram bot token.
