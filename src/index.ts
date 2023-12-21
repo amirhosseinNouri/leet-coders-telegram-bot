@@ -19,32 +19,48 @@ bot.setupBotCommands();
  * Telegram bot handlers
  */
 bot.telegraf.command('start', (ctx) => {
-  ctx.replyWithMarkdownV2('Choose difficulty', bot.difficultyInlineKeyboard);
+  try {
+    ctx.replyWithMarkdownV2('Choose difficulty', bot.difficultyInlineKeyboard);
+  } catch (error) {
+    logger.error(`Failed to run /start command: ${error}`);
+    bot.sendGeneralErrorMessage();
+  }
 });
 
 bot.telegraf.command('difficulty', (ctx) => {
-  ctx.replyWithMarkdownV2('Choose difficulty', bot.difficultyInlineKeyboard);
+  try {
+    ctx.replyWithMarkdownV2('Choose difficulty', bot.difficultyInlineKeyboard);
+  } catch (error) {
+    logger.error(`Failed to run /difficulty command: ${error}`);
+    bot.sendGeneralErrorMessage();
+  }
 });
 
 bot.telegraf.command('total', async (ctx) => {
   const { id } = ctx.chat;
-  const chat = await Chat.findOne({ id });
 
-  if (!chat) {
-    return;
+  try {
+    const chat = await Chat.findOne({ id });
+
+    if (!chat) {
+      return;
+    }
+
+    const easy = chat.easySolvedQuestions.length;
+    const medium = chat.mediumSolvedQuestions.length;
+    const hard = chat.hardSolvedQuestions.length;
+
+    const message = `You have solved:
+    😀 ${easy} EASY questions.
+    👀 ${medium} MEDIUM questions.
+    😰 ${hard} HARD questions.
+    🧮 total: ${easy + medium + hard}
+    `;
+    ctx.sendMessage(message);
+  } catch (error) {
+    logger.error(`Failed to run /total command: ${error}`);
+    bot.sendGeneralErrorMessage();
   }
-
-  const easy = chat.easySolvedQuestions.length;
-  const medium = chat.mediumSolvedQuestions.length;
-  const hard = chat.hardSolvedQuestions.length;
-
-  const message = `You have solved:
-  😀 ${easy} EASY questions.
-  👀 ${medium} MEDIUM questions.
-  😰 ${hard} HARD questions.
-  🧮 total: ${easy + medium + hard}
-  `;
-  ctx.sendMessage(message);
 });
 
 bot.telegraf.command('another', async (ctx) => {
@@ -60,6 +76,7 @@ bot.telegraf.command('another', async (ctx) => {
 
     sendAQuestion(id);
   } catch (error) {
+    logger.error(`Failed to run /another command: ${error}`);
     bot.sendGeneralErrorMessage();
   }
 });
@@ -75,10 +92,15 @@ bot.telegraf.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
 
   try {
     await Chat.changeDifficulty(chatId, difficulty);
+    ctx.telegram.sendMessage(
+      chatId,
+      `I will send ${difficulty} questions ${getHumanReadableCronExpression()}`,
+    );
     ctx.telegram.sendMessage(chatId, `Difficulty changed to ${difficulty}`);
     ctx.deleteMessage(ctx.update.callback_query.message?.message_id);
+    logger.info(`Difficulty level change to ${difficulty} for ${chatId} chat`);
   } catch (error) {
-    console.log(error);
+    logger.error(`Failed to change difficulty level: ${error}`);
     bot.sendGeneralErrorMessage(chatId);
   }
 });
@@ -92,22 +114,25 @@ const sendAQuestion = async (chatId?: number) => {
   const filter = chatId ? { id: chatId } : {};
   const chats = await Chat.find(filter);
 
+  logger.info(`Going to send a new question for ${chats.length} chats.`);
+
   for (let i = 0; i < chats.length; i++) {
     const currentChat = chats[i];
     const { difficulty, id } = currentChat;
-    const solvedQuestions = currentChat.getSolvedQuestions(difficulty);
-
-    const nominateQuestions =
-      mapDifficultyToQuestions[difficulty].length > 0
-        ? mapDifficultyToQuestions[difficulty]
-        : await leetcode.fetchQuestions(difficulty);
-
-    const question = leetcode.pickUnsolvedQuestion(
-      solvedQuestions,
-      nominateQuestions,
-    );
 
     try {
+      const solvedQuestions = currentChat.getSolvedQuestions(difficulty);
+
+      const nominateQuestions =
+        mapDifficultyToQuestions[difficulty].length > 0
+          ? mapDifficultyToQuestions[difficulty]
+          : await leetcode.fetchQuestions(difficulty);
+
+      const question = leetcode.pickUnsolvedQuestion(
+        solvedQuestions,
+        nominateQuestions,
+      );
+
       if (!question) {
         bot.telegraf.telegram.sendMessage(
           id,
@@ -137,8 +162,11 @@ const sendAQuestion = async (chatId?: number) => {
 
       currentChat.updateLatestIds(questionMessageId, pollMessageId);
     } catch (error) {
-      console.error(error);
-      bot.sendGeneralErrorMessage();
+      logger.error(`Failed to send a question: ${error}`);
+      bot.sendErrorMessage(
+        currentChat.id,
+        `Failed to send a new question. Please try /another command.`,
+      );
     }
   }
 };

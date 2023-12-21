@@ -18,7 +18,10 @@ const setupBotCommands = () => {
   ]);
 };
 
-const sendGeneralErrorMessage = (chatId?: number) => {
+const sendGeneralErrorMessage = (chatId?: number) =>
+  sendErrorMessage(chatId, 'An error has occurred. Please try again');
+
+const sendErrorMessage = (chatId: number | undefined, message: string) => {
   if (!chatId) {
     return;
   }
@@ -33,4 +36,5 @@ export default {
   difficultyInlineKeyboard,
   setupBotCommands,
   sendGeneralErrorMessage,
+  sendErrorMessage,
 };

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Difficulty, TitleSlug } from './types';
+import logger from './logger';
 
 const DEFAULT_LIMIT = 1000;
 const LEET_CODE_BASE_URL = 'https://leetcode.com/problems';
@@ -36,10 +37,13 @@ const fetchQuestions: FetchQuestions = async (
   });
   const payload = await data.json();
   const response = LeetCodeResponseSchema.parse(payload);
-
-  return response.data.problemsetQuestionList.questions.map(
+  const questionTitles = response.data.problemsetQuestionList.questions.map(
     (question) => question.titleSlug,
   );
+
+  logger.info(`Got ${questionTitles.length} questions from LeetCode.`);
+
+  return questionTitles;
 };
 
 const generateQuestionURL = (slug: TitleSlug): string =>
