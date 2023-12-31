@@ -69,7 +69,9 @@ bot.telegraf.command('another', async (ctx) => {
   try {
     const chat = await Chat.findOne({ id });
 
-    if (chat && chat.latestPollId && chat.latestQuestionId) {
+    const hasPreviousMessages = chat?.latestPollId && chat?.latestQuestionId;
+
+    if (chat && hasPreviousMessages) {
       await ctx.deleteMessage(chat.latestPollId);
       await ctx.deleteMessage(chat.latestQuestionId);
     }
