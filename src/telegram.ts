@@ -15,6 +15,10 @@ const setupBotCommands = () => {
     { command: '/difficulty', description: 'Change difficulty' },
     { command: '/total', description: 'Get the total of solved questions' },
     { command: '/another', description: 'Send another question' },
+    {
+      command: '/next',
+      description: 'Send the next question (without deleting the current one)',
+    },
   ]);
 };
 

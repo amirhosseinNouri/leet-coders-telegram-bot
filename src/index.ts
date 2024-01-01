@@ -83,6 +83,19 @@ bot.telegraf.command('another', async (ctx) => {
   }
 });
 
+bot.telegraf.command('next', async (ctx) => {
+  const { id } = ctx.chat;
+
+  try {
+    const chat = await Chat.findOne({ id });
+
+    sendAQuestion(id);
+  } catch (error) {
+    logger.error(`Failed to run /another command: ${error}`);
+    bot.sendGeneralErrorMessage();
+  }
+});
+
 bot.telegraf.action(/^(HARD|EASY|MEDIUM)$/, async (ctx) => {
   const { id: chatId } = ctx.chat || {};
 
