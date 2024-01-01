@@ -207,4 +207,8 @@ const run = async () => {
   }
 };
 
+process.on('unhandledRejection', (err: Error) => {
+  logger.error(`🔥 UNHANDLED REJECTION: ${err.name}.`);
+});
+
 run();
